@@ -18,14 +18,18 @@
         .content-section { display: none; }
         .content-section.active { display: block; }
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
         .task-row { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
         .input-group { display: flex; align-items: center; gap: 8px; }
         .task-input { flex: 1; border: none; border-bottom: 1px solid #ddd; outline: none; font-size: 0.9em; }
+        .btn-del { background: none; border: none; color: var(--danger-color); cursor: pointer; font-weight: bold; padding: 0 5px; }
+        .add-task-btn { width: 100%; padding: 8px; margin-top: 10px; border: 1px dashed var(--main-color); background: #f0f7ff; color: var(--main-color); border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .long-event-form { background: #fff8ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #fce4bd; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #eee; border-left: 1px solid #eee; }
-        .calendar-day { min-height: 110px; padding: 8px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; background: #fff; }
+        .calendar-day { min-height: 110px; padding: 8px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; background: #fff; overflow-y: auto; }
         .event-bar { font-size: 0.7em; padding: 3px 6px; margin-bottom: 2px; border-radius: 4px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .event-task { background: var(--task-color); }
+        .event-long { background: var(--long-color); }
         .completed { opacity: 0.4; text-decoration: line-through; }
         .sync-badge { font-size: 0.7em; color: var(--success-color); float: right; }
     </style>
@@ -34,14 +38,11 @@
 
 <div class="container">
     <header style="text-align: center; margin-bottom: 20px;">
-        <h1>대학교 과제 및 일정 정리 <span class="sync-badge" id="sync-status">● 클라우드 동기화 중</span></h1>
+        <h1>대학교 과제 및 일정 정리 <span class="sync-badge" id="sync-status">● 연결 확인 중</span></h1>
     </header>
 
     <div class="dashboard">
-        <div class="widget-card">
-            <h4>전체 이행률</h4>
-            <div class="widget-value" id="progress-text">0%</div>
-        </div>
+        <div class="widget-card"><h4>전체 이행률</h4><div class="widget-value" id="progress-text">0%</div></div>
         <div class="widget-card"><h4>오늘 마감</h4><div class="widget-value" id="today-count" style="color: #e74c3c;">0</div></div>
         <div class="widget-card"><h4>남은 과제</h4><div class="widget-value" id="remaining-count">0</div></div>
     </div>
@@ -51,147 +52,4 @@
         <button class="tab-btn" onclick="showTab('calendar')">📅 달력</button>
     </div>
 
-    <div id="list-section" class="content-section active">
-        <div class="grid-layout" id="subject-container"></div>
-    </div>
-
-    <div id="calendar-section" class="content-section">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <button onclick="changeMonth(-1)">◀</button>
-            <h2 id="month-display" style="margin:0;"></h2>
-            <button onclick="changeMonth(1)">▶</button>
-        </div>
-        <div class="calendar-grid" id="calendar-grid"></div>
-    </div>
-</div>
-
-<script>
-    // 1. Firebase 설정 (본인의 정보를 입력하세요)
-    const firebaseConfig = {
-        apiKey: "AIzaSyBFgo6A1AzR1XOF_xBPDcsAqbD-Otg8-vk",
-        authDomain: "collage-scheduler.firebaseapp.com",
-        databaseURL: "https://collage-scheduler-default-rtdb.asia-southeast1.firebasedatabase.app/",
-        projectId: "collage-scheduler",
-        storageBucket: "collage-scheduler.appspot.com",
-        messagingSenderId: "453104339634",
-        appId: "1:453104339634:web:61fa883b7aad617d6917ab"
-    };
-
-    // Firebase 초기화
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const subjects = ["파이썬 프로그래밍", "컴퓨터수학", "공학설계입문", "컴퓨테이셔널띵킹", "기초수학", "컴퓨팅사고와데이터의이해", "SW융합개론"];
-    let currentDate = new Date();
-    let cloudData = {}; // 클라우드에서 받아온 데이터를 저장할 객체
-
-    // 2. 실시간 데이터 수신 루틴
-    db.ref("assignments").on("value", (snapshot) => {
-        cloudData = snapshot.val() || {};
-        renderSubjects();
-        updateWidgets();
-        if (document.getElementById('calendar-section').classList.contains('active')) renderCalendar();
-        document.getElementById('sync-status').innerText = "● 클라우드 실시간 동기화됨";
-    });
-
-    function renderSubjects() {
-        const container = document.getElementById('subject-container');
-        container.innerHTML = '';
-        subjects.forEach((sub, sIdx) => {
-            const card = document.createElement('div');
-            card.className = 'subject-card';
-            card.innerHTML = `<span style="font-weight:bold; color:#1a508b;">${sub}</span><div id="list-sub-${sIdx}" style="margin-top:10px;"></div>`;
-            container.appendChild(card);
-            
-            // 과목당 3개의 과제 필드 생성 (고정 또는 가변 가능)
-            for(let tIdx = 1; tIdx <= 3; tIdx++) {
-                const taskId = `s${sIdx}t${tIdx}`;
-                renderTaskRow(sIdx, taskId);
-            }
-        });
-    }
-
-    function renderTaskRow(sIdx, taskId) {
-        const listContainer = document.getElementById(`list-sub-${sIdx}`);
-        const task = cloudData[taskId] || { text: "", date: "", checked: false };
-        
-        const row = document.createElement('div');
-        row.className = 'task-row';
-        row.innerHTML = `
-            <div class="input-group">
-                <input type="checkbox" ${task.checked ? 'checked' : ''} onchange="saveToCloud('${taskId}', 'checked', this.checked)">
-                <input type="text" class="task-input ${task.checked ? 'completed' : ''}" value="${task.text || ''}" placeholder="과제 내용" onchange="saveToCloud('${taskId}', 'text', this.value)">
-            </div>
-            <input type="date" value="${task.date || ''}" style="font-size:0.75em; border:1px solid #eee; width:100%; margin-top:5px;" onchange="saveToCloud('${taskId}', 'date', this.value)">
-        `;
-        listContainer.appendChild(row);
-    }
-
-    // 3. 클라우드에 데이터 저장
-    function saveToCloud(taskId, field, value) {
-        document.getElementById('sync-status').innerText = "○ 동기화 중...";
-        db.ref("assignments/" + taskId).update({
-            [field]: value
-        });
-    }
-
-    function updateWidgets() {
-        let total = 0, completed = 0, todayTasks = 0, remaining = 0;
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        Object.values(cloudData).forEach(task => {
-            if (task.text) {
-                total++;
-                if (task.checked) completed++;
-                else {
-                    remaining++;
-                    if (task.date === todayStr) todayTasks++;
-                }
-            }
-        });
-
-        const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
-        document.getElementById('progress-text').innerText = percent + '%';
-        document.getElementById('today-count').innerText = todayTasks;
-        document.getElementById('remaining-count').innerText = remaining;
-    }
-
-    function renderCalendar() {
-        const grid = document.getElementById('calendar-grid');
-        const display = document.getElementById('month-display');
-        grid.innerHTML = '';
-        const y = currentDate.getFullYear(), m = currentDate.getMonth();
-        display.innerText = `${y}년 ${m + 1}월`;
-        const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div')).className = 'calendar-day';
-        for (let d = 1; d <= lastDate; d++) {
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'calendar-day';
-            const curDateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            dayDiv.innerHTML = `<div style="font-size:0.8em; font-weight:bold;">${d}</div>`;
-
-            Object.values(cloudData).forEach(task => {
-                if (task.date === curDateStr && task.text) {
-                    const el = document.createElement('div');
-                    el.className = `event-bar event-task ${task.checked ? 'completed' : ''}`;
-                    el.innerText = `📝 ${task.text}`;
-                    dayDiv.appendChild(el);
-                }
-            });
-            grid.appendChild(dayDiv);
-        }
-    }
-
-    function showTab(type) {
-        document.querySelectorAll('.content-section, .tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(type + '-section').classList.add('active');
-        if (type === 'calendar') renderCalendar();
-    }
-
-    function changeMonth(v) { currentDate.setMonth(currentDate.getMonth() + v); renderCalendar(); }
-    
-    // 초기화는 데이터가 수신될 때 자동으로 일어납니다.
-</script>
-</body>
-</html>
+    <div
