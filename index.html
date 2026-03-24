@@ -46,6 +46,11 @@
         .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 15px; background: #fff; position: relative; }
         .subject-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .subject-title { border: none; font-weight: bold; color: #1a508b; font-size: 1.1em; width: 70%; outline: none; }
+        
+        /* 과제 상세 정보 스타일 */
+        .task-row { margin-bottom: 15px; background: #fafafa; padding: 10px; border-radius: 8px; border-left: 3px solid var(--main-color); }
+        .task-desc { width: 100%; border: none; background: transparent; font-size: 0.8em; color: #666; margin-top: 5px; outline: none; border-top: 1px dashed #eee; padding-top: 5px; }
+        
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #eee; border-left: 1px solid #eee; }
         .calendar-day { min-height: 90px; padding: 5px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; font-size: 0.8em; }
         .event-bar { font-size: 0.7em; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; color: white; cursor: pointer; overflow: hidden; white-space: nowrap; }
@@ -87,11 +92,11 @@
 
     <div id="list-section" class="content-section active">
         <div class="preset-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <strong style="font-size: 0.9em; color: #566573;">✨ 과목 프리셋 (4개 슬롯)</strong>
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" id="direct-sub-input" placeholder="과목 추가" style="padding:6px; border:1px solid #ddd; border-radius:5px; font-size: 0.85em; width:100px;">
-                    <button onclick="addSubjectDirect()" style="background:var(--main-color); color:white; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.85em;">추가</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px;">
+                <strong style="font-size: 0.9em; color: #566573; white-space: nowrap;">✨ 과목 프리셋</strong>
+                <div style="display: flex; gap: 5px; flex: 1;">
+                    <input type="text" id="direct-sub-input" placeholder="새로운 과목 명을 입력하세요" style="flex: 1; padding:8px; border:1px solid #ddd; border-radius:5px; font-size: 0.85em;">
+                    <button onclick="addSubjectDirect()" style="background:var(--main-color); color:white; border:none; padding:5px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.85em;">추가</button>
                 </div>
             </div>
             <div class="preset-grid" id="preset-container"></div>
@@ -206,12 +211,20 @@
             taskIds.forEach(id => {
                 const t = cloudData[id], row = document.createElement('div');
                 row.className = 'task-row';
-                row.innerHTML = `<div class="input-group" style="display:flex; align-items:center; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #eee;"><input type="checkbox" ${t.checked ? 'checked' : ''} onchange="db.ref('assignments/${id}/checked').set(this.checked)"><input type="text" class="task-input" value="${t.text}" style="flex:1; border:none; outline:none;" onchange="db.ref('assignments/${id}/text').set(this.value)"><button style="border:none; background:none; color:var(--danger-color); cursor:pointer;" onclick="db.ref('assignments/${id}').remove()">✕</button></div><input type="date" value="${t.date}" style="width:100%; border:none; font-size:0.8em; color:#888;" onchange="db.ref('assignments/${id}/date').set(this.value)">`;
+                row.innerHTML = `
+                    <div class="input-group" style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" ${t.checked ? 'checked' : ''} onchange="db.ref('assignments/${id}/checked').set(this.checked)">
+                        <input type="text" class="task-input" value="${t.text}" style="flex:1; border:none; outline:none; font-weight:bold; background:transparent;" placeholder="과제 제목" onchange="db.ref('assignments/${id}/text').set(this.value)">
+                        <button style="border:none; background:none; color:var(--danger-color); cursor:pointer;" onclick="db.ref('assignments/${id}').remove()">✕</button>
+                    </div>
+                    <input type="text" class="task-desc" value="${t.desc || ''}" placeholder="상세 정보(링크, 메모 등)" onchange="db.ref('assignments/${id}/desc').set(this.value)">
+                    <input type="date" value="${t.date}" style="width:100%; border:none; font-size:0.8em; color:#888; margin-top:5px; background:transparent;" onchange="db.ref('assignments/${id}/date').set(this.value)">
+                `;
                 document.getElementById(`list-sub-${subId}`).appendChild(row);
             });
             const addBtn = document.createElement('button');
             addBtn.className = 'add-task-btn'; addBtn.innerText = '+ 과제 추가';
-            addBtn.onclick = () => db.ref("assignments/"+subId+'t'+Date.now()).set({text:"", date:"", checked:false});
+            addBtn.onclick = () => db.ref("assignments/"+subId+'t'+Date.now()).set({text:"", date:"", checked:false, desc:""});
             card.appendChild(addBtn);
         });
     }
@@ -272,7 +285,6 @@
         Object.values(cloudData).forEach(t => { if(t.text) { total++; if(t.checked) completed++; else { remain++; if(t.date === todayStr) today++; } } });
         const percent = (total === 0 ? 0 : Math.round((completed/total)*100));
         document.getElementById('progress-text').innerText = percent + '%';
-        // 미니 게이지 바 업데이트
         document.getElementById('mini-bar').style.width = percent + '%';
         document.getElementById('today-count').innerText = today;
         document.getElementById('remaining-count').innerText = remain;
