@@ -1,69 +1,57 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3407/3407024.png">
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>대학교 과제 및 일정 스마트 관리</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <style>
         :root { --main-color: #3498db; --bg-color: #f8f9fa; --border-color: #e1e8ed; --task-color: #3498db; --long-color: #f39c12; --success-color: #2ecc71; --danger-color: #e74c3c; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 15px; color: #2c3e50; padding-bottom: 150px; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
         
-        /* 클라우드 상태 표시 */
         .sync-status { text-align: center; font-size: 0.8em; color: #95a5a6; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .sync-dot { width: 8px; height: 8px; background: #2ecc71; border-radius: 50%; animation: blink 1.5s infinite; }
         @keyframes blink { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
 
-        /* 대시보드 위젯 */
         .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
         .widget-card { background: #fff; border: 1px solid var(--border-color); padding: 12px; border-radius: 12px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 85px; }
         .widget-card h4 { margin: 0 0 5px 0; font-size: 0.9em; color: #7f8c8d; }
         .widget-value { font-size: 1.2em; font-weight: bold; color: var(--main-color); }
 
-        /* 위젯 내 미니 게이지 바 */
         .mini-progress-wrapper { background: #eee; border-radius: 10px; height: 8px; width: 80%; margin: 8px auto 0; overflow: hidden; }
         .mini-progress-bar { background: linear-gradient(90deg, #3498db, #2ecc71); height: 100%; width: 0%; transition: width 0.5s ease-in-out; }
 
-        /* 탭 메뉴 */
         .tabs { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid var(--border-color); }
         .tab-btn { flex: 1; padding: 12px; border: none; background: none; cursor: pointer; font-weight: bold; color: #7f8c8d; }
         .tab-btn.active { color: var(--main-color); border-bottom: 3px solid var(--main-color); }
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        /* 프리셋 관리 */
-        .preset-section { background: #fdfefe; border: 1px solid #e1e8ed; padding: 12px; border-radius: 15px; margin-bottom: 20px; }
+        .preset-section { background: #fdfefe; border: 1px solid #e1e8ed; padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 15px; }
         .preset-card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px 10px; border-radius: 12px; text-align: center; position: relative; }
         .preset-name-input { width: 85%; border: 1px solid #ccc; border-radius: 4px; padding: 4px; margin-bottom: 8px; font-size: 0.8em; text-align: center; font-weight: bold; }
         .btn-preset-save { background: var(--success-color); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
         .btn-preset-load { background: #6c5ce7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
         
-        /* 🔥 수정된 가시성 높은 삭제 버튼 */
         .btn-preset-del { 
-            position: absolute; 
-            top: -8px; 
-            right: -8px; 
-            background: var(--danger-color); 
-            color: white; 
-            border: 2px solid white; 
-            width: 24px; 
-            height: 24px; 
-            border-radius: 50%; 
-            cursor: pointer; 
-            font-size: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
-            z-index: 10;
+            position: absolute; top: -8px; right: -8px; 
+            background: var(--danger-color); color: white; border: 2px solid white; 
+            width: 24px; height: 24px; border-radius: 50%; 
+            cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); transition: all 0.2s ease; z-index: 10;
         }
         .btn-preset-del:hover { background: #c0392b; transform: scale(1.15); }
 
-        /* 리스트 및 달력 스타일 */
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 15px; background: #fff; position: relative; }
         .subject-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -109,19 +97,27 @@
     </div>
 
     <div id="list-section" class="content-section active">
-        <div class="preset-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <strong style="font-size: 0.9em; color: #566573; white-space: nowrap;">✨ 과목 프리셋</strong>
-                    <button onclick="addPresetSlot()" style="background: #6c5ce7; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+ 슬롯 추가</button>
+        <div class="preset-section" style="background: #ffffff; border: 2px solid #3498db; box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15); padding: 15px;">
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f0f7ff; padding: 10px; border-radius: 10px; border: 1px solid #d0e3ff;">
+                    <strong style="font-size: 0.9em; color: #2980b9; white-space: nowrap;">✨ 과목 프리셋</strong>
+                    <button onclick="addPresetSlot()" style="background: #6c5ce7; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 0.85em; font-weight: bold; box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3); white-space: nowrap;">
+                        + 슬롯 추가
+                    </button>
                 </div>
-                <div style="display: flex; gap: 5px; flex: 1;">
-                    <input type="text" id="direct-sub-input" placeholder="새로운 과목 명을 입력하세요" style="flex: 1; padding:8px; border:1px solid #ddd; border-radius:5px; font-size: 0.85em;">
-                    <button onclick="addSubjectDirect()" style="background:var(--main-color); color:white; border:none; padding:5px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.85em;">추가</button>
+
+                <div style="display: flex; gap: 5px; background: #fff; padding: 5px; border-radius: 10px; border: 2px solid #3498db;">
+                    <input type="text" id="direct-sub-input" placeholder="새 과목 명 입력" style="flex: 1; min-width: 0; padding: 10px; border: none; font-size: 0.9em; outline: none; background: transparent;">
+                    <button onclick="addSubjectDirect()" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 7px; cursor: pointer; font-weight: bold; font-size: 0.9em; white-space: nowrap;">
+                        추가
+                    </button>
                 </div>
+
             </div>
-            <div class="preset-grid" id="preset-container"></div>
+            <div class="preset-grid" id="preset-container" style="margin-top: 15px;"></div>
         </div>
+        
         <div class="grid-layout" id="subject-container"></div>
     </div>
 
@@ -151,6 +147,14 @@
 </div>
 
 <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log("Service Worker Registered", reg))
+                .catch(err => console.log("Service Worker Failed", err));
+        });
+    }
+
     const firebaseConfig = {
         apiKey: "AIzaSyBFgo6A1AzR1XOF_xBPDcsAqbD-Otg8-vk",
         authDomain: "collage-scheduler.firebaseapp.com",
