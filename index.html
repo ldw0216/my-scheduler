@@ -35,11 +35,12 @@
 
         /* 프리셋 관리 */
         .preset-section { background: #fdfefe; border: 1px solid #e1e8ed; padding: 12px; border-radius: 15px; margin-bottom: 20px; }
-        .preset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
-        .preset-card { background: #f8f9fa; border: 1px solid #ddd; padding: 8px; border-radius: 10px; text-align: center; }
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
+        .preset-card { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; border-radius: 10px; text-align: center; position: relative; }
         .preset-name-input { width: 85%; border: 1px solid #ccc; border-radius: 4px; padding: 4px; margin-bottom: 5px; font-size: 0.8em; text-align: center; }
         .btn-preset-save { background: var(--success-color); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
         .btn-preset-load { background: #6c5ce7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
+        .btn-preset-del { position: absolute; top: 2px; right: 5px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 0.9em; }
 
         /* 리스트 및 달력 스타일 */
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
@@ -47,7 +48,6 @@
         .subject-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .subject-title { border: none; font-weight: bold; color: #1a508b; font-size: 1.1em; width: 70%; outline: none; }
         
-        /* 과제 상세 정보 스타일 */
         .task-row { margin-bottom: 15px; background: #fafafa; padding: 10px; border-radius: 8px; border-left: 3px solid var(--main-color); }
         .task-desc { width: 100%; border: none; background: transparent; font-size: 0.8em; color: #666; margin-top: 5px; outline: none; border-top: 1px dashed #eee; padding-top: 5px; }
         
@@ -55,13 +55,10 @@
         .calendar-day { min-height: 90px; padding: 5px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; font-size: 0.8em; }
         .event-bar { font-size: 0.7em; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; color: white; cursor: pointer; overflow: hidden; white-space: nowrap; }
 
-        /* 하단 초기화 버튼 */
         .reset-wrapper { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
         .reset-btn { padding: 10px 18px; border: none; border-radius: 25px; color: white; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; }
         .add-task-btn { width: 100%; padding: 10px; border: 1px dashed var(--main-color); background: #f0f7ff; color: var(--main-color); border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-
-        @media (max-width: 600px) { .preset-grid { grid-template-columns: repeat(2, 1fr); } }
     </style>
 </head>
 <body>
@@ -93,7 +90,10 @@
     <div id="list-section" class="content-section active">
         <div class="preset-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px;">
-                <strong style="font-size: 0.9em; color: #566573; white-space: nowrap;">✨ 과목 프리셋</strong>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <strong style="font-size: 0.9em; color: #566573; white-space: nowrap;">✨ 과목 프리셋</strong>
+                    <button onclick="addPresetSlot()" style="background: #6c5ce7; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; font-weight: bold;">+ 슬롯 추가</button>
+                </div>
                 <div style="display: flex; gap: 5px; flex: 1;">
                     <input type="text" id="direct-sub-input" placeholder="새로운 과목 명을 입력하세요" style="flex: 1; padding:8px; border:1px solid #ddd; border-radius:5px; font-size: 0.85em;">
                     <button onclick="addSubjectDirect()" style="background:var(--main-color); color:white; border:none; padding:5px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.85em;">추가</button>
@@ -150,10 +150,7 @@
         cloudData = data.assignments || {};
         subjectList = data.subjectList || {};
         longEvents = data.longEvents || {};
-        presets = data.presets || {
-            p1: { name: "프리셋 1", subjects: [] }, p2: { name: "프리셋 2", subjects: [] },
-            p3: { name: "프리셋 3", subjects: [] }, p4: { name: "프리셋 4", subjects: [] }
-        };
+        presets = data.presets || {}; 
         renderPresetUI();
         renderSubjects();
         updateWidgets();
@@ -167,31 +164,46 @@
         if(type === 'cal') renderCalendar();
     }
 
+    /* 프리셋 슬롯 추가 함수 */
+    function addPresetSlot() {
+        const pid = 'p' + Date.now();
+        db.ref('presets/' + pid).set({ name: "새 프리셋", subjects: [] });
+    }
+
+    /* 프리셋 슬롯 삭제 함수 */
+    function deletePresetSlot(pid) {
+        if(confirm("이 프리셋 슬롯을 삭제할까요?")) {
+            db.ref('presets/' + pid).remove();
+        }
+    }
+
     function renderPresetUI() {
         const container = document.getElementById('preset-container');
         container.innerHTML = '';
-        for(let i=1; i<=4; i++) {
-            const pid = 'p' + i, pData = presets[pid] || { name: "프리셋 "+i };
-            container.innerHTML += `
-                <div class="preset-card">
-                    <input type="text" class="preset-name-input" id="name-${pid}" value="${pData.name}" onchange="db.ref('presets/${pid}/name').set(this.value)">
-                    <div style="display:flex; justify-content:center; gap:3px;">
-                        <button class="btn-preset-save" onclick="saveToPreset('${pid}')">저장</button>
-                        <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">붙여넣기</button>
-                    </div>
-                </div>`;
-        }
+        Object.entries(presets).forEach(([pid, pData]) => {
+            const card = document.createElement('div');
+            card.className = 'preset-card';
+            card.innerHTML = `
+                <button class="btn-preset-del" onclick="deletePresetSlot('${pid}')">✕</button>
+                <input type="text" class="preset-name-input" id="name-${pid}" value="${pData.name}" onchange="db.ref('presets/${pid}/name').set(this.value)">
+                <div style="display:flex; justify-content:center; gap:3px;">
+                    <button class="btn-preset-save" onclick="saveToPreset('${pid}')">저장</button>
+                    <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">붙여넣기</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
     }
 
     function saveToPreset(pid) {
         const currentNames = Object.values(subjectList);
-        if(currentNames.length === 0) return;
-        if(confirm(`'${presets[pid].name}'에 저장할까요?`)) db.ref(`presets/${pid}/subjects`).set(currentNames);
+        if(currentNames.length === 0) { alert("저장할 과목이 없습니다."); return; }
+        if(confirm(`현재 리스트를 '${presets[pid].name}'에 저장할까요?`)) db.ref(`presets/${pid}/subjects`).set(currentNames);
     }
 
     function loadFromPreset(pid) {
         const pData = presets[pid];
-        if(!pData.subjects) { alert("데이터가 없습니다."); return; }
+        if(!pData.subjects || pData.subjects.length === 0) { alert("데이터가 없습니다."); return; }
         if(confirm(`'${pData.name}'을 불러올까요? 현재 리스트는 교체됩니다.`)) {
             db.ref("subjectList").remove(); db.ref("assignments").remove();
             pData.subjects.forEach((name, idx) => db.ref("subjectList/sub" + (Date.now() + idx)).set(name));
