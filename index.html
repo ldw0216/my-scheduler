@@ -7,10 +7,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
         :root { --main-color: #3498db; --bg-color: #f8f9fa; --border-color: #e1e8ed; --task-color: #3498db; --long-color: #f39c12; --success-color: #2ecc71; --danger-color: #e74c3c; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; color: #2c3e50; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; color: #2c3e50; padding-bottom: 80px; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
         
-        /* 대시보드 및 게이지 스타일 */
+        /* 대시보드 및 게이지 */
         .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
         .widget-card { background: #fff; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; text-align: center; }
         .widget-value { font-size: 1.4em; font-weight: bold; color: var(--main-color); }
@@ -25,15 +25,15 @@
         .content-section.active { display: block; }
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         
-        /* 과제 카드 및 입력창 */
-        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; position: relative; }
+        /* 과제 카드 */
+        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; }
         .task-row { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #eee; }
         .input-group { display: flex; align-items: center; gap: 8px; }
         .task-input { flex: 1; border: none; border-bottom: 1px solid #ddd; outline: none; font-size: 0.9em; padding: 2px; }
         .btn-del { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1.1em; padding: 0 5px; }
         .add-task-btn { width: 100%; padding: 8px; margin-top: 10px; border: 1px dashed var(--main-color); background: #f0f7ff; color: var(--main-color); border-radius: 6px; cursor: pointer; font-weight: bold; }
 
-        /* 달력 및 기간 일정 */
+        /* 달력 */
         .long-event-form { background: #fff8ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #fce4bd; font-size: 0.9em; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #eee; border-left: 1px solid #eee; }
         .calendar-day { min-height: 100px; padding: 5px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; background: #fff; }
@@ -42,6 +42,13 @@
         .event-long { background: var(--long-color); }
         .completed { opacity: 0.4; text-decoration: line-through; }
         .sync-badge { font-size: 0.7em; color: var(--success-color); float: right; }
+
+        /* 플로팅 초기화 버튼 */
+        .reset-wrapper { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; z-index: 1000; }
+        .reset-btn { padding: 10px 18px; border: none; border-radius: 30px; color: white; cursor: pointer; font-weight: bold; font-size: 0.85em; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.2s; }
+        .reset-btn:active { transform: scale(0.95); }
+        .btn-list-reset { background-color: #5d6d7e; }
+        .btn-cal-reset { background-color: #a04000; }
     </style>
 </head>
 <body>
@@ -89,6 +96,11 @@
     </div>
 </div>
 
+<div class="reset-wrapper">
+    <button class="reset-btn btn-list-reset" onclick="resetAssignments()">🧹 모든 과제 초기화</button>
+    <button class="reset-btn btn-cal-reset" onclick="resetCalendar()">📅 달력 일정 초기화</button>
+</div>
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyBFgo6A1AzR1XOF_xBPDcsAqbD-Otg8-vk",
@@ -108,7 +120,6 @@
     let cloudData = {};
     let longEvents = {};
 
-    // 데이터 수신
     db.ref().on("value", (snapshot) => {
         const data = snapshot.val() || {};
         cloudData = data.assignments || {};
@@ -116,7 +127,7 @@
         renderSubjects();
         updateWidgets();
         if (document.getElementById('calendar-section').classList.contains('active')) renderCalendar();
-        document.getElementById('sync-status').innerText = "● 클라우드 동기화됨";
+        document.getElementById('sync-status').innerText = "● 클라우드 실시간 동기화됨";
     });
 
     function renderSubjects() {
@@ -130,7 +141,6 @@
             
             const taskIds = Object.keys(cloudData).filter(id => id.startsWith(`s${sIdx}t`)).sort();
             if(taskIds.length === 0) {
-                // 저장된 게 없으면 하나 빈칸 생성
                 const tid = `s${sIdx}t${Date.now()}`;
                 renderTaskRow(sIdx, tid);
             } else {
@@ -163,6 +173,20 @@
 
     function updateTask(id, field, val) { db.ref("assignments/"+id).update({[field]: val}); }
     function deleteTask(id) { if(confirm("삭제할까요?")) db.ref("assignments/"+id).remove(); }
+
+    // 초기화 함수 1: 과제 리스트만 삭제
+    function resetAssignments() {
+        if(confirm("⚠️ 경고: 모든 과제 목록이 영구적으로 삭제됩니다. 계속할까요?")) {
+            db.ref("assignments").remove();
+        }
+    }
+
+    // 초기화 함수 2: 달력 일정만 삭제
+    function resetCalendar() {
+        if(confirm("📅 모든 달력 일정을 초기화할까요?")) {
+            db.ref("longEvents").remove();
+        }
+    }
 
     function addLongEvent() {
         const text = document.getElementById('long-text').value;
