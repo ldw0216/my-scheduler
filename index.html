@@ -177,7 +177,7 @@
                     <input type="text" class="preset-name-input" id="name-${pid}" value="${pData.name}" onchange="db.ref('presets/${pid}/name').set(this.value)">
                     <div style="display:flex; justify-content:center; gap:3px;">
                         <button class="btn-preset-save" onclick="saveToPreset('${pid}')">저장</button>
-                        <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">불기</button>
+                        <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">붙여넣기</button>
                     </div>
                 </div>`;
         }
