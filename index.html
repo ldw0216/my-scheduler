@@ -6,28 +6,38 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <style>
-        :root { --main-color: #3498db; --bg-color: #f8f9fa; --border-color: #e1e8ed; --task-color: #3498db; --long-color: #f39c12; --success-color: #27ae60; --danger-color: #e74c3c; }
+        :root { --main-color: #3498db; --bg-color: #f8f9fa; --border-color: #e1e8ed; --task-color: #3498db; --long-color: #f39c12; --success-color: #2ecc71; --danger-color: #e74c3c; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg-color); margin: 0; padding: 20px; color: #2c3e50; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+        
+        /* 대시보드 및 게이지 스타일 */
         .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
         .widget-card { background: #fff; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; text-align: center; }
         .widget-value { font-size: 1.4em; font-weight: bold; color: var(--main-color); }
+        .progress-container { width: 100%; background: #eee; border-radius: 10px; height: 12px; margin-top: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--main-color), var(--success-color)); transition: width 0.5s ease-in-out; }
+
+        /* 탭 및 레이아웃 */
         .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid var(--border-color); }
         .tab-btn { padding: 12px 25px; border: none; background: none; cursor: pointer; font-weight: bold; color: #7f8c8d; font-size: 1.1em; }
         .tab-btn.active { color: var(--main-color); border-bottom: 3px solid var(--main-color); }
         .content-section { display: none; }
         .content-section.active { display: block; }
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
-        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
-        .task-row { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+        
+        /* 과제 카드 및 입력창 */
+        .subject-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 12px; background: #fff; position: relative; }
+        .task-row { margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px dashed #eee; }
         .input-group { display: flex; align-items: center; gap: 8px; }
-        .task-input { flex: 1; border: none; border-bottom: 1px solid #ddd; outline: none; font-size: 0.9em; }
-        .btn-del { background: none; border: none; color: var(--danger-color); cursor: pointer; font-weight: bold; padding: 0 5px; }
+        .task-input { flex: 1; border: none; border-bottom: 1px solid #ddd; outline: none; font-size: 0.9em; padding: 2px; }
+        .btn-del { background: none; border: none; color: var(--danger-color); cursor: pointer; font-size: 1.1em; padding: 0 5px; }
         .add-task-btn { width: 100%; padding: 8px; margin-top: 10px; border: 1px dashed var(--main-color); background: #f0f7ff; color: var(--main-color); border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .long-event-form { background: #fff8ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #fce4bd; }
+
+        /* 달력 및 기간 일정 */
+        .long-event-form { background: #fff8ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #fce4bd; font-size: 0.9em; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #eee; border-left: 1px solid #eee; }
-        .calendar-day { min-height: 110px; padding: 8px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; background: #fff; overflow-y: auto; }
-        .event-bar { font-size: 0.7em; padding: 3px 6px; margin-bottom: 2px; border-radius: 4px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .calendar-day { min-height: 100px; padding: 5px; border-right: 1px solid #eee; border-bottom: 1px solid #eee; background: #fff; }
+        .event-bar { font-size: 0.7em; padding: 3px 6px; margin-bottom: 2px; border-radius: 4px; color: white; cursor: pointer; }
         .event-task { background: var(--task-color); }
         .event-long { background: var(--long-color); }
         .completed { opacity: 0.4; text-decoration: line-through; }
@@ -38,12 +48,16 @@
 
 <div class="container">
     <header style="text-align: center; margin-bottom: 20px;">
-        <h1>대학교 과제 및 일정 정리 <span class="sync-badge" id="sync-status">● 연결 확인 중</span></h1>
+        <h1>과제 커넥트 <span class="sync-badge" id="sync-status">● 연결 중</span></h1>
     </header>
 
     <div class="dashboard">
-        <div class="widget-card"><h4>전체 이행률</h4><div class="widget-value" id="progress-text">0%</div></div>
-        <div class="widget-card"><h4>오늘 마감</h4><div class="widget-value" id="today-count" style="color: #e74c3c;">0</div></div>
+        <div class="widget-card">
+            <h4>전체 이행률</h4>
+            <div class="widget-value" id="progress-text">0%</div>
+            <div class="progress-container"><div id="progress-bar" class="progress-fill"></div></div>
+        </div>
+        <div class="widget-card"><h4>오늘 마감</h4><div class="widget-value" id="today-count" style="color:var(--danger-color)">0</div></div>
         <div class="widget-card"><h4>남은 과제</h4><div class="widget-value" id="remaining-count">0</div></div>
     </div>
 
@@ -59,16 +73,16 @@
     <div id="calendar-section" class="content-section">
         <div class="long-event-form">
             <strong>🚩 기간 일정 등록:</strong>
-            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
-                <input type="text" id="long-text" placeholder="일정 내용" style="flex:1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                <input type="date" id="long-start" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;"> ~ 
-                <input type="date" id="long-end" style="padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                <button onclick="addLongEvent()" style="background:var(--long-color); color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer;">추가</button>
+            <div style="display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap;">
+                <input type="text" id="long-text" placeholder="시험기간, 프로젝트 등" style="flex:1; padding:5px; border:1px solid #ddd;">
+                <input type="date" id="long-start" style="padding:5px; border:1px solid #ddd;"> ~ 
+                <input type="date" id="long-end" style="padding:5px; border:1px solid #ddd;">
+                <button onclick="addLongEvent()" style="background:var(--long-color); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">추가</button>
             </div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <button onclick="changeMonth(-1)">◀</button>
-            <h2 id="month-display" style="margin:0;"></h2>
+            <h3 id="month-display" style="margin:0;"></h3>
             <button onclick="changeMonth(1)">▶</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
@@ -94,7 +108,7 @@
     let cloudData = {};
     let longEvents = {};
 
-    // 데이터 통합 수신
+    // 데이터 수신
     db.ref().on("value", (snapshot) => {
         const data = snapshot.val() || {};
         cloudData = data.assignments || {};
@@ -102,7 +116,7 @@
         renderSubjects();
         updateWidgets();
         if (document.getElementById('calendar-section').classList.contains('active')) renderCalendar();
-        document.getElementById('sync-status').innerText = "● 클라우드 실시간 동기화됨";
+        document.getElementById('sync-status').innerText = "● 클라우드 동기화됨";
     });
 
     function renderSubjects() {
@@ -111,24 +125,22 @@
         subjects.forEach((sub, sIdx) => {
             const card = document.createElement('div');
             card.className = 'subject-card';
-            card.innerHTML = `<span style="font-weight:bold; color:#1a508b;">${sub}</span><div id="list-sub-${sIdx}" style="margin-top:10px;"></div>`;
+            card.innerHTML = `<b style="color:#1a508b; display:block; margin-bottom:15px;">${sub}</b><div id="list-sub-${sIdx}"></div>`;
             container.appendChild(card);
             
-            // 해당 과목에 속하는 과제들 필터링하여 출력
-            const taskIds = Object.keys(cloudData).filter(id => id.startsWith(`s${sIdx}t`));
-            
-            // 저장된 과제가 없으면 기본으로 1개 보여줌
+            const taskIds = Object.keys(cloudData).filter(id => id.startsWith(`s${sIdx}t`)).sort();
             if(taskIds.length === 0) {
-                const defaultId = `s${sIdx}t${Date.now()}`;
-                renderTaskRow(sIdx, defaultId);
+                // 저장된 게 없으면 하나 빈칸 생성
+                const tid = `s${sIdx}t${Date.now()}`;
+                renderTaskRow(sIdx, tid);
             } else {
-                taskIds.sort().forEach(id => renderTaskRow(sIdx, id));
+                taskIds.forEach(id => renderTaskRow(sIdx, id));
             }
 
             const addBtn = document.createElement('button');
             addBtn.className = 'add-task-btn';
             addBtn.innerText = '+ 과제 추가';
-            addBtn.onclick = () => addTask(sIdx);
+            addBtn.onclick = () => { const newId = `s${sIdx}t${Date.now()}`; db.ref("assignments/"+newId).set({text:"", date:"", checked:false}); };
             card.appendChild(addBtn);
         });
     }
@@ -140,93 +152,74 @@
         row.className = 'task-row';
         row.innerHTML = `
             <div class="input-group">
-                <input type="checkbox" ${task.checked ? 'checked' : ''} onchange="saveToCloud('${taskId}', 'checked', this.checked)">
-                <input type="text" class="task-input ${task.checked ? 'completed' : ''}" value="${task.text || ''}" placeholder="과제 내용" onchange="saveToCloud('${taskId}', 'text', this.value)">
+                <input type="checkbox" ${task.checked ? 'checked' : ''} onchange="updateTask('${taskId}', 'checked', this.checked)">
+                <input type="text" class="task-input ${task.checked ? 'completed' : ''}" value="${task.text || ''}" placeholder="내용 입력" onchange="updateTask('${taskId}', 'text', this.value)">
                 <button class="btn-del" onclick="deleteTask('${taskId}')">✕</button>
             </div>
-            <input type="date" value="${task.date || ''}" style="font-size:0.75em; border:1px solid #eee; width:100%; margin-top:5px;" onchange="saveToCloud('${taskId}', 'date', this.value)">
+            <input type="date" value="${task.date || ''}" style="width:100%; border:none; color:#888; font-size:0.8em; margin-top:5px;" onchange="updateTask('${taskId}', 'date', this.value)">
         `;
         listContainer.appendChild(row);
     }
 
-    function addTask(sIdx) {
-        const newId = `s${sIdx}t${Date.now()}`;
-        db.ref("assignments/" + newId).set({ text: "", date: "", checked: false });
-    }
-
-    function deleteTask(taskId) {
-        if(confirm("이 과제를 삭제할까요?")) db.ref("assignments/" + taskId).remove();
-    }
+    function updateTask(id, field, val) { db.ref("assignments/"+id).update({[field]: val}); }
+    function deleteTask(id) { if(confirm("삭제할까요?")) db.ref("assignments/"+id).remove(); }
 
     function addLongEvent() {
         const text = document.getElementById('long-text').value;
         const start = document.getElementById('long-start').value;
         const end = document.getElementById('long-end').value;
-        if(!text || !start || !end) return alert("내용과 기간을 입력하세요.");
-        const newId = 'ev' + Date.now();
-        db.ref("longEvents/" + newId).set({ text, start, end });
+        if(!text || !start || !end) return;
+        db.ref("longEvents/ev"+Date.now()).set({ text, start, end });
         document.getElementById('long-text').value = '';
     }
 
-    function saveToCloud(taskId, field, value) {
-        document.getElementById('sync-status').innerText = "○ 동기화 중...";
-        db.ref("assignments/" + taskId).update({ [field]: value });
-    }
-
     function updateWidgets() {
-        let total = 0, completed = 0, todayTasks = 0, remaining = 0;
-        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-        
-        Object.values(cloudData).forEach(task => {
-            if (task.text) {
+        let total = 0, completed = 0, today = 0, remain = 0;
+        const todayStr = new Date().toISOString().split('T')[0];
+        Object.values(cloudData).forEach(t => {
+            if(t.text) {
                 total++;
-                if (task.checked) completed++;
-                else {
-                    remaining++;
-                    if (task.date === todayStr) todayTasks++;
-                }
+                if(t.checked) completed++;
+                else { remain++; if(t.date === todayStr) today++; }
             }
         });
-        const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+        const percent = total === 0 ? 0 : Math.round((completed/total)*100);
         document.getElementById('progress-text').innerText = percent + '%';
-        document.getElementById('today-count').innerText = todayTasks;
-        document.getElementById('remaining-count').innerText = remaining;
+        document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('today-count').innerText = today;
+        document.getElementById('remaining-count').innerText = remain;
     }
 
     function renderCalendar() {
         const grid = document.getElementById('calendar-grid');
-        const display = document.getElementById('month-display');
         grid.innerHTML = '';
         const y = currentDate.getFullYear(), m = currentDate.getMonth();
-        display.innerText = `${y}년 ${m + 1}월`;
-        const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m + 1, 0).getDate();
+        document.getElementById('month-display').innerText = `${y}년 ${m+1}월`;
+        const firstDay = new Date(y, m, 1).getDay(), lastDate = new Date(y, m+1, 0).getDate();
 
         for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div')).className = 'calendar-day';
         for (let d = 1; d <= lastDate; d++) {
             const dayDiv = document.createElement('div');
             dayDiv.className = 'calendar-day';
-            const curDateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const curDateObj = new Date(curDateStr);
-            dayDiv.innerHTML = `<div style="font-size:0.8em; font-weight:bold; margin-bottom:5px;">${d}</div>`;
+            const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const dateObj = new Date(dateStr);
+            dayDiv.innerHTML = `<div style="font-size:0.8em; font-weight:bold;">${d}</div>`;
 
-            // 기간 일정 출력
             Object.entries(longEvents).forEach(([id, ev]) => {
-                const s = new Date(ev.start), e = new Date(ev.end);
-                if (curDateObj >= s && curDateObj <= e) {
+                if(dateObj >= new Date(ev.start) && dateObj <= new Date(ev.end)) {
                     const el = document.createElement('div');
                     el.className = 'event-bar event-long';
-                    el.innerText = `🚩 ${ev.text}`;
-                    el.onclick = () => { if(confirm("이 일정을 삭제할까요?")) db.ref("longEvents/"+id).remove(); };
+                    el.innerText = '🚩 '+ev.text;
+                    el.onclick = () => { if(confirm("일정을 삭제할까요?")) db.ref("longEvents/"+id).remove(); };
                     dayDiv.appendChild(el);
                 }
             });
 
-            // 일반 과제 출력
-            Object.values(cloudData).forEach(task => {
-                if (task.date === curDateStr && task.text) {
+            Object.values(cloudData).forEach(t => {
+                if(t.date === dateStr && t.text) {
                     const el = document.createElement('div');
-                    el.className = `event-bar event-task ${task.checked ? 'completed' : ''}`;
-                    el.innerText = `📝 ${task.text}`;
+                    el.className = `event-bar event-task ${t.checked ? 'completed' : ''}`;
+                    el.innerText = '📝 '+t.text;
                     dayDiv.appendChild(el);
                 }
             });
@@ -234,10 +227,10 @@
         }
     }
 
-    function showTab(type) {
+    function showTab(t) {
         document.querySelectorAll('.content-section, .tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(type + '-section').classList.add('active');
-        if (type === 'calendar') renderCalendar();
+        document.getElementById(t + '-section').classList.add('active');
+        if (t === 'calendar') renderCalendar();
     }
 
     function changeMonth(v) { currentDate.setMonth(currentDate.getMonth() + v); renderCalendar(); }
