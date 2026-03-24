@@ -35,12 +35,33 @@
 
         /* 프리셋 관리 */
         .preset-section { background: #fdfefe; border: 1px solid #e1e8ed; padding: 12px; border-radius: 15px; margin-bottom: 20px; }
-        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 10px; }
-        .preset-card { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; border-radius: 10px; text-align: center; position: relative; }
-        .preset-name-input { width: 85%; border: 1px solid #ccc; border-radius: 4px; padding: 4px; margin-bottom: 5px; font-size: 0.8em; text-align: center; }
+        .preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 15px; }
+        .preset-card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px 10px; border-radius: 12px; text-align: center; position: relative; }
+        .preset-name-input { width: 85%; border: 1px solid #ccc; border-radius: 4px; padding: 4px; margin-bottom: 8px; font-size: 0.8em; text-align: center; font-weight: bold; }
         .btn-preset-save { background: var(--success-color); color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
         .btn-preset-load { background: #6c5ce7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.75em; }
-        .btn-preset-del { position: absolute; top: 2px; right: 5px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 0.9em; }
+        
+        /* 🔥 수정된 가시성 높은 삭제 버튼 */
+        .btn-preset-del { 
+            position: absolute; 
+            top: -8px; 
+            right: -8px; 
+            background: var(--danger-color); 
+            color: white; 
+            border: 2px solid white; 
+            width: 24px; 
+            height: 24px; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            font-size: 12px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .btn-preset-del:hover { background: #c0392b; transform: scale(1.15); }
 
         /* 리스트 및 달력 스타일 */
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
@@ -92,7 +113,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <strong style="font-size: 0.9em; color: #566573; white-space: nowrap;">✨ 과목 프리셋</strong>
-                    <button onclick="addPresetSlot()" style="background: #6c5ce7; color: white; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8em; font-weight: bold;">+ 슬롯 추가</button>
+                    <button onclick="addPresetSlot()" style="background: #6c5ce7; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">+ 슬롯 추가</button>
                 </div>
                 <div style="display: flex; gap: 5px; flex: 1;">
                     <input type="text" id="direct-sub-input" placeholder="새로운 과목 명을 입력하세요" style="flex: 1; padding:8px; border:1px solid #ddd; border-radius:5px; font-size: 0.85em;">
@@ -164,13 +185,11 @@
         if(type === 'cal') renderCalendar();
     }
 
-    /* 프리셋 슬롯 추가 함수 */
     function addPresetSlot() {
         const pid = 'p' + Date.now();
         db.ref('presets/' + pid).set({ name: "새 프리셋", subjects: [] });
     }
 
-    /* 프리셋 슬롯 삭제 함수 */
     function deletePresetSlot(pid) {
         if(confirm("이 프리셋 슬롯을 삭제할까요?")) {
             db.ref('presets/' + pid).remove();
@@ -184,11 +203,11 @@
             const card = document.createElement('div');
             card.className = 'preset-card';
             card.innerHTML = `
-                <button class="btn-preset-del" onclick="deletePresetSlot('${pid}')">✕</button>
+                <button class="btn-preset-del" onclick="deletePresetSlot('${pid}')" title="삭제">✕</button>
                 <input type="text" class="preset-name-input" id="name-${pid}" value="${pData.name}" onchange="db.ref('presets/${pid}/name').set(this.value)">
                 <div style="display:flex; justify-content:center; gap:3px;">
                     <button class="btn-preset-save" onclick="saveToPreset('${pid}')">저장</button>
-                    <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">붙여넣기</button>
+                    <button class="btn-preset-load" onclick="loadFromPreset('${pid}')">불러오기</button>
                 </div>
             `;
             container.appendChild(card);
@@ -197,13 +216,13 @@
 
     function saveToPreset(pid) {
         const currentNames = Object.values(subjectList);
-        if(currentNames.length === 0) { alert("저장할 과목이 없습니다."); return; }
-        if(confirm(`현재 리스트를 '${presets[pid].name}'에 저장할까요?`)) db.ref(`presets/${pid}/subjects`).set(currentNames);
+        if(currentNames.length === 0) return;
+        if(confirm(`'${presets[pid].name}'에 저장할까요?`)) db.ref(`presets/${pid}/subjects`).set(currentNames);
     }
 
     function loadFromPreset(pid) {
         const pData = presets[pid];
-        if(!pData.subjects || pData.subjects.length === 0) { alert("데이터가 없습니다."); return; }
+        if(!pData.subjects) { alert("데이터가 없습니다."); return; }
         if(confirm(`'${pData.name}'을 불러올까요? 현재 리스트는 교체됩니다.`)) {
             db.ref("subjectList").remove(); db.ref("assignments").remove();
             pData.subjects.forEach((name, idx) => db.ref("subjectList/sub" + (Date.now() + idx)).set(name));
